@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PersistableBundle;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -30,7 +31,6 @@ public class MainActivity extends AppCompatActivity {
     private static final int MEDIA_TYPE_IMAGE = 1;
 
     //Keys to save our instance
-    private static final String BITMAP_KEY = "bitmap_key_252";
     private static final String PHOTO_URI_KEY = "photo_uri_352";
 
     private Uri photoURI;
@@ -60,9 +60,11 @@ public class MainActivity extends AppCompatActivity {
             bitmap.recycle();
 
         try {
-            //We load full resolution photo, it may eat some RAM, but whatever
-            //We want our photo to be beautiful.
-            bitmap = BitmapFactory.decodeFile(photoURI.getPath());
+            //We load half resolution photo, it is still something so it may eat some RAM, cause small lag,
+            //but that's OK
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = 2;
+            bitmap = BitmapFactory.decodeFile(photoURI.getPath(),options);
             if (bitmap != null) {
                 imageView.setImageBitmap(bitmap);
             }
@@ -108,7 +110,6 @@ public class MainActivity extends AppCompatActivity {
     private File getOutputMediaFile(int type){
         File mediaStorageDir;
 
-        Log.d("ENV",Environment.getExternalStorageState());
         if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
             //External (like sdcard, Pictures/CameraApp/)
             mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
@@ -136,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator +
                     "IMG_"+ timeStamp + ".jpg");
         } else {
-            Log.d("CameraApp","Bad signature!");
+            Log.d("CameraApp", "Bad signature!");
             return null;
         }
 
@@ -148,21 +149,32 @@ public class MainActivity extends AppCompatActivity {
         super.onSaveInstanceState(outState);
         imageView = (ImageView) findViewById(R.id.imageView);
 
-        //Bitmap - We can handle this in two ways...
-        // - method 1: just destroy it and load it back from memory
-        // - method 2: keep it in outState and reload it later
-        //Method 1 is for for large amount of large files
-        //Method 2 is simple, but if we add another photo then it could be dangerous,
-        //because onSaveInstanceStage isn't designed to handle big objects like bitmaps
-        //Just keep it in mind
+        //Bitmap.
+        //Do not put bitmap in the bundle. It will exceed limit of size, causing
+        //bad red things. We don't want it.
+        //Yes I tried it. It didn't work.
+
+        //Solution: read it from memory again
         if(bitmap != null) //If we have a bitmap
         {
-            outState.putParcelable(BITMAP_KEY, bitmap); //Method 2
-            //bitmap.recycle(); //Method 1
+            imageView.setImageDrawable(null); //Release bitmap from imageView
+            bitmap.recycle();
         }
 
         if(photoURI != null) //It may be useful (like method 1)
+        {
             outState.putParcelable(PHOTO_URI_KEY, photoURI);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        //System didn't kill our app, but we already vanish our
+        //bitmap so we need to restore it.
+        if(photoURI != null)
+            setBitmap();
     }
 
     @Override
@@ -172,13 +184,7 @@ public class MainActivity extends AppCompatActivity {
 
         if(savedInstanceState.containsKey(PHOTO_URI_KEY)) {
             photoURI = savedInstanceState.getParcelable(PHOTO_URI_KEY);
-            //setBitmap(); //Method 1
-        }
-
-        //Restore our photo if present //Method 2
-        if(savedInstanceState.containsKey(BITMAP_KEY)) {
-            bitmap = savedInstanceState.getParcelable(BITMAP_KEY);
-            imageView.setImageBitmap(bitmap);
+            setBitmap(); //Restore out bitmap
         }
     }
 }
