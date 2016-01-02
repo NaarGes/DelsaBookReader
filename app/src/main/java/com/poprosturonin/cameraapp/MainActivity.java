@@ -150,9 +150,9 @@ public class MainActivity extends AppCompatActivity {
         imageView = (ImageView) findViewById(R.id.imageView);
 
         //Bitmap.
-        //Do not put bitmap in the bundle. It will exceed limit of size, causing
-        //bad red things. We don't want it.
-        //Yes I tried it. It didn't work.
+        //Do not put bitmap in the bundle. It is simple, but tt will exceed limit of size,
+        //causing bad red things. We don't want it.
+        //Yes I tried it. It was "working", but probably unstable.
 
         //Solution: read it from memory again
         if(bitmap != null) //If we have a bitmap
@@ -173,6 +173,7 @@ public class MainActivity extends AppCompatActivity {
 
         //System didn't kill our app, but we already vanish our
         //bitmap so we need to restore it.
+        //Note: onRestoreInstanceState won't be called, that's why we are here
         if(photoURI != null)
             setBitmap();
     }
