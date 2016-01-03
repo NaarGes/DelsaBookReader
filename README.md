@@ -5,6 +5,8 @@ In [MainActivity.java](https://github.com/PoprostuRonin/CameraApp/blob/master/ap
 
 You can download latest debug-signed .apk file from releases folder:
 [Click here](/releases/)
+or by using following QR Code:
+![QRCode](/releases/qrcode.png)
 
 Screenshot:
 
