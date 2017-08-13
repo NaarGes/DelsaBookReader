@@ -1,30 +1,32 @@
 package com.poprosturonin.cameraapp;
 
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.PersistableBundle;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.ImageView;
 import android.widget.Toast;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.EventListener;
+
 
 public class MainActivity extends AppCompatActivity {
     private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 100;
@@ -34,15 +36,12 @@ public class MainActivity extends AppCompatActivity {
     private static final String PHOTO_URI_KEY = "photo_uri_352";
 
     private Uri photoURI;
-    private ImageView imageView;
     private Bitmap bitmap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -51,14 +50,12 @@ public class MainActivity extends AppCompatActivity {
                 getPhoto();
             }
         });
+
     }
 
     /** Get bitmap from {@link #photoURI#getPath()} and load it to imageView */
     public void setBitmap()
     {
-        if(bitmap != null)
-            bitmap.recycle();
-
         try {
             //We load half resolution photo, it is still something so it may eat some RAM, cause small lag,
             //but that's OK
@@ -66,7 +63,17 @@ public class MainActivity extends AppCompatActivity {
             options.inSampleSize = 2;
             bitmap = BitmapFactory.decodeFile(photoURI.getPath(),options);
             if (bitmap != null) {
-                imageView.setImageBitmap(bitmap);
+                // send bitmap to server
+                Thread net = new Thread() {
+                    public void run() {
+                        UploadTask ut = new UploadTask();
+                        ut.doInBackground(bitmap);
+                    }
+                };
+                net.start();
+
+
+
             }
         }
         catch (Exception e) {
@@ -74,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** Starts camera intent to capture image */
+    // Starts camera intent to capture image
     public void getPhoto()
     {
         // create Intent to take a picture and return control to the calling application
@@ -106,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** Create a File for saving an image or video */
+    // Create a File for saving an image or video
     private File getOutputMediaFile(int type){
         File mediaStorageDir;
 
@@ -147,24 +154,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        imageView = (ImageView) findViewById(R.id.imageView);
-
-        //Bitmap.
-        //Do not put bitmap in the bundle. It is simple, but tt will exceed limit of size,
-        //causing bad red things. We don't want it.
-        //Yes I tried it. It was "working", but probably unstable.
 
         //Solution: read it from memory again
-        if(bitmap != null) //If we have a bitmap
-        {
-            imageView.setImageDrawable(null); //Release bitmap from imageView
-            bitmap.recycle();
-        }
-
-        if(photoURI != null) //It may be useful (like method 1)
-        {
+        if(photoURI != null) //It may be useful
             outState.putParcelable(PHOTO_URI_KEY, photoURI);
-        }
     }
 
     @Override
@@ -181,11 +174,79 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        imageView = (ImageView) findViewById(R.id.imageView);
-
         if(savedInstanceState.containsKey(PHOTO_URI_KEY)) {
             photoURI = savedInstanceState.getParcelable(PHOTO_URI_KEY);
             setBitmap(); //Restore out bitmap
         }
     }
+
+    private class UploadTask extends AsyncTask<Bitmap, Void, Void> {
+
+        private static final String TAG = "MainActivity";
+
+        protected Void doInBackground(Bitmap... bitmaps) {
+            if (bitmaps[0] == null)
+                return null;
+
+            Bitmap bitmap = bitmaps[0];
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream); // convert Bitmap to ByteArrayOutputStream
+            InputStream in = new ByteArrayInputStream(stream.toByteArray()); // convert ByteArrayOutputStream to ByteArrayInputStream
+
+            DefaultHttpClient httpclient = new DefaultHttpClient();
+            try {
+                HttpPost httppost = new HttpPost("http://172.20.55.104:5000/files/"); // server
+
+                MultipartEntity reqEntity = new MultipartEntity();
+                reqEntity.addPart("myFile", /*System.currentTimeMillis() +*/ ".jpg", in);
+                httppost.setEntity(reqEntity);
+
+                Log.i(TAG, "request " + httppost.getRequestLine());
+                HttpResponse response = null;
+                try {
+                    response = httpclient.execute(httppost);
+                } catch (ClientProtocolException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                try {
+                    if (response != null)
+                        Log.i(TAG, "response " + response.getStatusLine().toString());
+                } finally {
+
+                }
+            } finally {
+
+            }
+
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            // TODO Auto-generated method stub
+            super.onPostExecute(result);
+        }
+    }
+
 }
