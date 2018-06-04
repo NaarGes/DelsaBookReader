@@ -3,6 +3,8 @@ package com.poprosturonin.cameraapp;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -12,6 +14,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import org.apache.http.HttpResponse;
@@ -19,11 +22,14 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -37,6 +43,9 @@ public class MainActivity extends AppCompatActivity {
 
     private Uri photoURI;
     private Bitmap bitmap;
+    private MediaPlayer mp;
+    private String url;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +57,19 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 getPhoto();
+            }
+        });
+
+        mp = new MediaPlayer();
+        ImageView play_pause = (ImageView) findViewById(R.id.button);
+        play_pause.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                if(mp.isPlaying())
+                    mp.pause();
+                else
+                    mp.start();
             }
         });
 
@@ -64,15 +86,41 @@ public class MainActivity extends AppCompatActivity {
             bitmap = BitmapFactory.decodeFile(photoURI.getPath(),options);
             if (bitmap != null) {
                 // send bitmap to server
+                Toast.makeText(getApplicationContext(), "Sending image...", Toast.LENGTH_SHORT).show();
+                final MainActivity temp = this;
                 Thread net = new Thread() {
                     public void run() {
+                        Log.i("tag", "bitmap is not null");
+                        url = "";
                         UploadTask ut = new UploadTask();
                         ut.doInBackground(bitmap);
+                        while(url.isEmpty()) {
+                            try {
+                                currentThread().sleep(100);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            Log.i("URL fetching ...", "URL didn't fetch.");
+                        }
+                        Log.i("url received", url);
+                        try {
+                            //
+                            temp.runOnUiThread(new Runnable() {
+                                public void run() {
+                                    Toast.makeText(getApplicationContext(), "Voice received!", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+
+                            mp.reset();
+                            mp.setDataSource(getApplicationContext(), Uri.parse(url));
+                            mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                            mp.prepare();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
                 };
                 net.start();
-
-
 
             }
         }
@@ -167,8 +215,8 @@ public class MainActivity extends AppCompatActivity {
         //System didn't kill our app, but we already vanish our
         //bitmap so we need to restore it.
         //Note: onRestoreInstanceState won't be called, that's why we are here
-        if(photoURI != null)
-            setBitmap();
+//        if(photoURI != null)
+//            setBitmap();
     }
 
     @Override
@@ -176,9 +224,10 @@ public class MainActivity extends AppCompatActivity {
         super.onRestoreInstanceState(savedInstanceState);
         if(savedInstanceState.containsKey(PHOTO_URI_KEY)) {
             photoURI = savedInstanceState.getParcelable(PHOTO_URI_KEY);
-            setBitmap(); //Restore out bitmap
+//            setBitmap(); //Restore out bitmap
         }
     }
+
 
     private class UploadTask extends AsyncTask<Bitmap, Void, Void> {
 
@@ -195,8 +244,7 @@ public class MainActivity extends AppCompatActivity {
 
             DefaultHttpClient httpclient = new DefaultHttpClient();
             try {
-                HttpPost httppost = new HttpPost("http://172.20.55.104:5000/files/"); // server
-
+                HttpPost httppost = new HttpPost("http://192.168.43.133:5000/files/"); // server
                 MultipartEntity reqEntity = new MultipartEntity();
                 reqEntity.addPart("myFile", /*System.currentTimeMillis() +*/ ".jpg", in);
                 httppost.setEntity(reqEntity);
@@ -213,8 +261,22 @@ public class MainActivity extends AppCompatActivity {
                     e.printStackTrace();
                 }
                 try {
-                    if (response != null)
+                    Log.i(TAG, "response is NULL: " + (response == null? "true": "false"));
+                    if (response != null) {
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent(), "UTF-8"));
+                        try {
+                            url = reader.readLine();
+                            Log.i("URL fetched", url);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        // new codes added in 31 mordad for show page number
                         Log.i(TAG, "response " + response.getStatusLine().toString());
+                    }
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 } finally {
 
                 }

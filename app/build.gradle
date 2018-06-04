@@ -19,13 +19,20 @@ android {
     productFlavors {
     }
 
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+    }
 }
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    testCompile 'junit:junit:4.12'
+    compile files('libs/httpclient-4.5.3.jar')
     compile 'com.android.support:appcompat-v7:22.2.1'
     compile 'com.android.support:design:22.2.1'
     compile 'com.android.support.constraint:constraint-layout:1.0.2'
-    compile files('build/generated/assets/HTTPClient/httpclient-4.5.3.jar')
+    testCompile 'junit:junit:4.12'
 }

@@ -2,4 +2,5 @@
     <string name="app_name">کتاب خوان صوتی دلسا</string>
     <string name="action_settings">Settings</string>
     <string name="welcome_note">به اپلیکیشن کتابخوان صوتی دلسا خوش آمدید \n ابتدا از اتصال دستگاه خود به اینترنت اطمینان حاصل کنید\nبرای استفاده کافیست از متن دلخواه خود عکس برداری کرده و صدای دریافتی را پخش کنید</string>
+    <string name="ip">Server IP</string>
 </resources>

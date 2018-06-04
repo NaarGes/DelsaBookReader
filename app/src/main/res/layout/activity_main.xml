@@ -5,12 +5,24 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <LinearLayout
+
+    <RelativeLayout
         android:id="@+id/viewA"
-        android:background="@drawable/background"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:background="@drawable/background"
+        android:orientation="vertical"
+        android:weightSum="1">
+
+        <ImageView
+            android:id="@+id/button"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_below="@+id/textView"
+            android:layout_centerHorizontal="true"
+            android:src="@drawable/play_pause_button" />
+
+
 
         <TextView
             android:id="@+id/textView"
@@ -21,21 +33,26 @@
             android:layout_marginTop="50dp"
             android:text="@string/welcome_note"
             android:textSize="18sp"
+            app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/toolbar"
-            app:layout_constraintHorizontal_bias="0.0" />
+            app:layout_constraintRight_toRightOf="parent" />
 
-    </LinearLayout>
+        <!--app:layout_constraintTop_toBottomOf="@+id/toolbar" />-->
+
+
+
+    </RelativeLayout>
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/fab"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:clickable="true"
         android:src="@drawable/ic_camera_alt_black_24dp"
         app:layout_anchor="@id/viewA"
-        app:layout_anchorGravity="bottom|right|end"/>
+        app:layout_anchorGravity="bottom|right|end" />
+
+
 
 </android.support.design.widget.CoordinatorLayout>
